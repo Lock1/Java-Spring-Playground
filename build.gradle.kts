@@ -8,7 +8,6 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
 }
 
-
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(24)
@@ -28,10 +27,13 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.5")
+    implementation("com.h2database:h2:2.3.232")
     compileOnly("org.projectlombok:lombok")
-    developmentOnly("org.springframework.boot:spring-boot-devtools")
     annotationProcessor("org.projectlombok:lombok")
+
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -40,3 +42,7 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// tasks.register<Null> {
+//
+// }
