@@ -1,4 +1,4 @@
-package com.brush.butcher;
+package com.brush.play;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -12,7 +12,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
-import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
@@ -24,9 +23,10 @@ import lombok.extern.slf4j.Slf4j;
 @SpringBootApplication
 @EnableEncryptableProperties
 @Slf4j
-public class ButcherApplication {
+public class PlayApplication {
     public static void main(String[] args) {
-        SpringApplication.run(ButcherApplication.class, args);
+        SpringApplication.run(PlayApplication.class, args);
+        // RouterFunction<>
     }
 
     @Bean
@@ -58,7 +58,7 @@ public class ButcherApplication {
 
     @Bean
     DataSource dataSource() {
-        return functionalBuilder(() -> new SimpleDriverDataSource(new Driver(), "jdbc:h2:mem:db"), __ -> __)
+        return functionalBuilder(() -> new SimpleDriverDataSource(new Driver(), "jdbc:h2:mem:db"), x -> x)
             .construct(dataSource -> {
                 dataSource.setUsername("sa");
                 dataSource.setPassword("password");

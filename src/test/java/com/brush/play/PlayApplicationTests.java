@@ -1,11 +1,10 @@
-package com.brush.butcher;
+package com.brush.play;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ButcherApplicationTests {
+class PlayApplicationTests {
     @Test
-    void contextLoads() {
-    }
+    void contextLoads() {}
 }

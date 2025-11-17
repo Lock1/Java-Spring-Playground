@@ -66,44 +66,43 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
-}
+tasks {
+    val GENERATE_PROFILE_ENUM = "generateProfileEnum"
 
-tasks.withType<JavaCompile> {
-    options.compilerArgs.addAll(listOf(
-        "-AcheckPurityAnnotations",
-        "-AsuppressWarnings=uninitialized",
-    ))
-}
+    register<Task>(GENERATE_PROFILE_ENUM) {
+        description = "[Custom] Generate Profile Java enum in main source directory"
 
-object TaskConstants {
-    object Name {
-        const val GENERATE_PROFILE_ENUM = "generateProfileEnum"
+        val generationTime = SimpleDateFormat("yyyy-MM-dd").format(Date())
+        val generatedSource = """
+            |package com.brush.generated;
+
+            |/** Gradle Task '${GENERATE_PROFILE_ENUM}': Source generated at ${generationTime} */
+            |public enum Profile {
+            |    ${Profile.values().joinToString{it.name} };
+
+            |    ${Profile.values().joinToString(separator="\n    ") {
+                "public static final String ${it.name}_STRING = \"${it.stringConstant}\";"
+            }}
+            |}
+        """.trimMargin()
+
+        val FILENAME = "src/main/java/com/brush/generated/Profile.java"
+        val output = file(FILENAME)
+        output.parentFile.mkdirs()
+        output.writeText(generatedSource)
+        logger.quiet("Successfully generated {} at {}", FILENAME, generationTime)
     }
-}
 
-tasks.register<Task>(TaskConstants.Name.GENERATE_PROFILE_ENUM) {
-    description = "[Custom] Generate Profile Java enum in main source directory"
 
-    val generationTime = SimpleDateFormat("yyyy-MM-dd").format(Date())
-    val generatedSource = """
-package com.brush.generated;
+    withType<Test> {
+        useJUnitPlatform()
+    }
 
-/** Gradle Task '${TaskConstants.Name.GENERATE_PROFILE_ENUM}': Source generated at ${generationTime} */
-public enum Profile {
-    ${Profile.values().joinToString{it.name} };
-
-    ${Profile.values().joinToString(separator="\n    ") {
-        "public static final String ${it.name}_STRING = \"${it.stringConstant}\";"
-    }}
-}
-    """.trim()
-
-    val FILENAME = "src/main/java/com/brush/generated/Profile.java"
-    val output = file(FILENAME)
-    output.parentFile.mkdirs()
-    output.writeText(generatedSource)
-    logger.quiet("Successfully generated {} at {}", FILENAME, generationTime)
+    withType<JavaCompile> {
+        options.compilerArgs.addAll(listOf(
+            "-AcheckPurityAnnotations",
+            "-AsuppressWarnings=uninitialized",
+        ))
+    }
 }
 
