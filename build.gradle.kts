@@ -1,11 +1,14 @@
+import buildscript.CopyBuildResources
+import buildscript.GradleBuildProfiles
 import org.checkerframework.gradle.plugin.CheckerFrameworkExtension
 import java.text.SimpleDateFormat
 import java.util.Date
 
-group       = "com.brush"
+project.setGroup("com.brush")
 version     = "0.0.1-SNAPSHOT"
 description = "Playground MVC"
 
+// TODO: Challenge - Transform plugin to Java-style
 plugins {
     java
     id("org.springframework.boot").version("3.5.7")
@@ -32,12 +35,17 @@ configurations {
     }
 }
 
-enum class Profile(val stringConstant: String) {
-    PRODUCTION("production"),
-    STAGING("staging"),
-    TEST("test"),
-    LOCAL("local"),
-}
+tasks.register("copyResources", CopyBuildResources::class, Action<CopyBuildResources> {
+    this.getResourcesPathString()
+        .set(providers.gradleProperty("resource")
+            .orElse("")
+            .map{ profileString -> GradleBuildProfiles.values()
+                .find{ it.stringRepresentation.equals(profileString) }
+                ?: throw GradleException("Cannot determine profile for build resources, please supply correct one (ex: -Presource=local)")
+            }.map{ when (it) {
+                GradleBuildProfiles.PRODUCTION, GradleBuildProfiles.LOCAL -> "resources/${it.stringRepresentation}"
+        }})
+})
 
 
 repositories {
@@ -67,32 +75,11 @@ dependencies {
 }
 
 tasks {
-    val GENERATE_PROFILE_ENUM = "generateProfileEnum"
-
-    register<Task>(GENERATE_PROFILE_ENUM) {
-        description = "[Custom] Generate Profile Java enum in main source directory"
-
-        val generationTime = SimpleDateFormat("yyyy-MM-dd").format(Date())
-        val generatedSource = """
-            |package com.brush.generated;
-
-            |/** Gradle Task '${GENERATE_PROFILE_ENUM}': Source generated at ${generationTime} */
-            |public enum Profile {
-            |    ${Profile.values().joinToString{it.name} };
-
-            |    ${Profile.values().joinToString(separator="\n    ") {
-                "public static final String ${it.name}_STRING = \"${it.stringConstant}\";"
-            }}
-            |}
-        """.trimMargin()
-
-        val FILENAME = "src/main/java/com/brush/generated/Profile.java"
-        val output = file(FILENAME)
-        output.parentFile.mkdirs()
-        output.writeText(generatedSource)
-        logger.quiet("Successfully generated {} at {}", FILENAME, generationTime)
+    register<Copy>("generateProfileEnum") {
+        // TODO: Some modification in package section
+        this.from("buildSrc/src/main/java/buildscript/SpringProfiles.java")
+        this.into("src/main/java/com/brush/generated")
     }
-
 
     withType<Test> {
         useJUnitPlatform()

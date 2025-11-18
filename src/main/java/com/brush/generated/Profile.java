@@ -1,6 +1,6 @@
 package com.brush.generated;
 
-/** Gradle Task 'generateProfileEnum': Source generated at 2025-11-17 */
+/** Gradle Task 'generateProfileEnum': Source generated at 2025-11-19 */
 public enum Profile {
     PRODUCTION, STAGING, TEST, LOCAL;
 
