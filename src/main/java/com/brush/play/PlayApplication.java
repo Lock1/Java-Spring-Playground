@@ -1,67 +1,80 @@
 package com.brush.play;
 
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.Map;
 
 import javax.sql.DataSource;
 
 import org.h2.Driver;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.event.EventListener;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.RouterFunctions;
+import org.springframework.web.servlet.function.ServerResponse;
 
-import com.ulisesbocchio.jasyptspringboot.annotation.EnableEncryptableProperties;
+import com.brush.play.MyBatisMapperShim.SqlResultHandler;
 
 import lombok.extern.slf4j.Slf4j;
 
 @SpringBootApplication
-@EnableEncryptableProperties
 @Slf4j
 public class PlayApplication {
+    // it looks like with 3.5.19, we can use standard xml stuff here as well
+    // what about XML forloop?
+    private static final String SQL_STRING = """
+        WITH MyInlineTable(Column1, Column2) AS (
+            SELECT 1, 'Red'
+            UNION ALL SELECT 2, 'Green'
+            UNION ALL SELECT 3, 'Blue'
+        )
+        SELECT Column1, Column2
+        FROM MyInlineTable
+        WHERE Column1 > #{second};
+    """;
+
     public static void main(String[] args) {
         SpringApplication.run(PlayApplication.class, args);
-        // RouterFunction<>
+    }
+
+    @SuppressWarnings("unused")
+    @Bean
+    RouterFunction<ServerResponse> routerFunction(MyBatisMapperShim mapper) {
+        record ReflectThis(
+            String first,
+            int second,
+            long third,
+            byte[] fourth,
+            String fifth
+        ) {}
+        final SqlResultHandler<Map<String,Object>> transformer = map -> { log.info("here: {}", map); return map; };
+        return RouterFunctions.route()
+            .GET("/hello", e -> {
+                return ServerResponse.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(mapper.executeSelect(SQL_STRING, transformer));
+            }).GET("/explode", __ -> {
+                return ServerResponse.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(mapper.executeSelect(SQL_STRING, transformer, new ReflectThis(null, 2, 1, new byte[1], null)));
+            }).GET("/hard", __ -> ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(mapper.executeSelect("SELECT * FROM TEST", map -> map.get("ID")))
+            ).build();
     }
 
     @Bean
-    ServletWebServerFactory servletWebServerFactory() {
-        return new TomcatServletWebServerFactory(1337);
-    }
-
-    @EventListener(classes=WebServerInitializedEvent.class)
-    void a(WebServerInitializedEvent event) {
-        System.out.println("What is this?");
-        System.out.println(event.getTimestamp());
-    }
-
-    @FunctionalInterface
-    interface BuilderInterface<Builder,Result> {
-        Result construct(Consumer<Builder> configurator);
-    }
-
-    public static <Builder,Result> BuilderInterface<Builder,Result> functionalBuilder(
-        Supplier<? extends Builder> builder,
-        Function<Builder,? extends Result> finalizer
-    ) {
-        return configurator -> {
-            final Builder builderInstance = builder.get();
-            configurator.accept(builderInstance);
-            return finalizer.apply(builderInstance);
-        };
-    }
+    ServletWebServerFactory servletWebServerFactory() { return new TomcatServletWebServerFactory(1337); }
 
     @Bean
     DataSource dataSource() {
-        return functionalBuilder(() -> new SimpleDriverDataSource(new Driver(), "jdbc:h2:mem:db"), x -> x)
-            .construct(dataSource -> {
-                dataSource.setUsername("sa");
-                dataSource.setPassword("password");
-            });
+        final var a = new SimpleDriverDataSource(new Driver(), "jdbc:h2:~/test");
+        a.setUsername("sa");
+        a.setPassword("");
+        return a;
     }
 }
+
