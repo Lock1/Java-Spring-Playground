@@ -82,9 +82,9 @@ public class MyBatisMapperShim {
 
     // There's no point accessing this class, but it requires public in order MyBatis @XXXProvider reflection to work
     public static final class TypesafeShimSqlProvider {
-        private static final String MYBATIS_PARAM                    = "_____MYBATIS_PARAM";
-        private static final String SQL_STATEMENT                    = "_____SQL_STATEMENT";
-        private static final String DYNAMIC_PARAM_MAP_NAME           = "_____DYNAMIC_PARAMETER_SHIM";
+        private static final String MYBATIS_PARAM                    = "#__MYBATIS_PARAM"; // Should never clash with Record method names
+        private static final String SQL_STATEMENT                    = "#__SQL_STATEMENT";
+        private static final String DYNAMIC_PARAM_MAP_NAME           = "#__DYNAMIC_PARAMETER_SHIM";
         private static final String MYBATIS_SQL_PROVIDER_METHOD_NAME = "sqlGenerator"; 
 
         @SuppressWarnings("unchecked") // This behavior based on reading MyBatis's source code. Last checked: MyBatis 3.5.19
