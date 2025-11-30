@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @AllArgsConstructor
 @Slf4j
-public class MyBatisMapperShim {
+public class MyBatisMapperFacade {
     private static final Set<String> JAVA_DEFAULT_OBJECT_METHOD_NAMES = Set.of("equals", "toString", "hashCode", "getClass", "notify", "notifyAll", "wait");
 
     private final MyBatisMapperAPI myBatisMapperApi;
@@ -37,7 +37,19 @@ public class MyBatisMapperShim {
     public interface SqlResultHandler<Result> extends Function<Map<String,Object>,Result> {}
 
     // Instead of MyBatis @Mapper -> @SqlProvider + method name reflection, this class provides at-runtime SQL statement evaluation -> MyBatis @ConstructorArgs & various @ResultMap related mapping -> Final result
-    // New Mapper: Accept Java Objects & produce SQL statement (can be conditional) -> MyBatisMapperShim execute the statement -> Transform result using provider resultHandler -> Final result
+    // New Mapper: Accept Java Objects & produce SQL statement (can be conditional) -> MyBatisMapperFacade execute the statement -> Transform result using provider resultHandler -> Final result
+    //
+    // Checklists:
+    // - Replace declarative-but-not-really-declarative non-PL feature to more normal in-band Java PL feature
+    // - Less need to remember MyBatis-specific behavior (what is ResultMap, ConstructorArgs, how it behave around XML, @XXXProvider, MyBatis source-code quirks, etc)
+    //   - It's quite annoying to deal with MyBatis-specific behavior
+    //   - Either discover it at runtime via trial-and-error like dynamic PL or read MyBatis's source code directly, both are exceptionally annoying for static PL & type-driven enjoyer
+    // - All Java PL feature now available to manipulate SQL statement
+    // - Hopefully more intuitive API: just ask Spring to inject MyBatisMapperFacade in your mapper, give sql statement in, get result out
+    //   - It still accept MyBatis's dynamic XML features and mini-footgun: <Parameter extends Record> variant of this method use reflection to map field name -> prepared statement name
+    //   - But unlike MyBatis XML & annotation which get spreaded across 10 billion files you need to track in your head, hopefully all of those can be contained within 1 class or even 1 method.
+    // - Drawback: Map<String,Object> - Enjoy boxed primitives (post-Valhalla pls fix). If you care about serde perf, you probably better off directly dealing with PreparedStatement anyway
+    // - Drawback: "With great power comes great responsibility" - Ability to use all normal Java PL constructs is very powerful, but used without care, enjoy SQLi. However, MyBatis XML & annotation mapper are not really safe either, you can still use ${}
     public <Result> Stream<Result> executeSelect(
         @Untainted String sqlStatement,
         SqlResultHandler<? extends Result> resultHandler
@@ -79,8 +91,8 @@ public class MyBatisMapperShim {
     @Mapper
     interface MyBatisMapperAPI {
         // In conjunction with InternalSqlProvider, this provides poor-man: select(String sqlStatement, Consumer<Map<String,Object>>) -> List<Map<String,Object>>
-        @SelectProvider(type=MyBatisMapperShim.InternalSqlProvider.class, method=InternalSqlProvider.MYBATIS_SQL_PROVIDER_METHOD_NAME)
-        public List<Map<String,Object>> select(@Param(MyBatisMapperShim.InternalSqlProvider.__MYBATIS_PARAMETER) Map<String,Object> parameters);
+        @SelectProvider(type=MyBatisMapperFacade.InternalSqlProvider.class, method=InternalSqlProvider.MYBATIS_SQL_PROVIDER_METHOD_NAME)
+        public List<Map<String,Object>> select(@Param(MyBatisMapperFacade.InternalSqlProvider.__MYBATIS_PARAMETER) Map<String,Object> parameters);
     }
 
     // There's no point accessing this class, but it requires public visibility in order MyBatis @XXXProvider reflection to work
