@@ -4,6 +4,7 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.checkerframework.checker.tainting.qual.Untainted;
 import org.h2.Driver;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -25,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PlayApplication {
     // it looks like with 3.5.19, we can use standard xml stuff here as well
     // what about XML forloop?
-    private static final String SQL_STRING = """
+    private static final @Untainted String SQL_STRING = """
         WITH MyInlineTable(Column1, Column2) AS (
             SELECT 1, 'Red'
             UNION ALL SELECT 2, 'Green'
@@ -62,7 +63,7 @@ public class PlayApplication {
                     .body(mapper.executeSelect(SQL_STRING, transformer, new ReflectThis(null, 2, 1, new byte[1], null)));
             }).GET("/hard", __ -> ServerResponse.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(mapper.executeSelect("SELECT * FROM TEST", map -> map.get("ID")))
+                .body(mapper.executeSelect((@Untainted String) "SELECT * FROM TEST", map -> map.get("ID")))
             ).build();
     }
 

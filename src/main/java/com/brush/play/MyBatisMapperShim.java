@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.SelectProvider;
+import org.checkerframework.checker.tainting.qual.Untainted;
 import org.springframework.stereotype.Component;
 
 import lombok.AllArgsConstructor;
@@ -35,8 +36,10 @@ public class MyBatisMapperShim {
     @FunctionalInterface
     public interface SqlResultHandler<Result> extends Function<Map<String,Object>,Result> {}
 
+    // Instead of MyBatis @Mapper -> @SqlProvider + method name reflection, this class provides at-runtime SQL statement evaluation -> MyBatis @ConstructorArgs & various @ResultMap related mapping -> Final result
+    // New Mapper: Accept Java Objects & produce SQL statement (can be conditional) -> MyBatisMapperShim execute the statement -> Transform result using provider resultHandler -> Final result
     public <Result> Stream<Result> executeSelect(
-        String sqlStatement,
+        @Untainted String sqlStatement,
         SqlResultHandler<? extends Result> resultHandler
     ) {
         return myBatisMapperApi.select(Map.of(InternalSqlProvider.SQL_STATEMENT, sqlStatement))
@@ -45,7 +48,7 @@ public class MyBatisMapperShim {
     }
 
     public <Result,Parameter extends Record> Stream<Result> executeSelect(
-        String sqlStatement,
+        @Untainted String sqlStatement,
         SqlResultHandler<? extends Result> resultHandler,
         Parameter param
     ) {

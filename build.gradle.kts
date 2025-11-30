@@ -36,6 +36,7 @@ project.configure(Helper.lambdaToFLReceiver({ checkerPlugin: CheckerFrameworkExt
     checkerPlugin.setCheckers(listOf(
         // "org.checkerframework.checker.nullness.NullnessChecker",
         // "org.checkerframework.checker.units.UnitsChecker",
+        "org.checkerframework.checker.tainting.TaintingChecker",
     ))
 }))
 
