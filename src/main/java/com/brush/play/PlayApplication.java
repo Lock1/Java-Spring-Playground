@@ -72,6 +72,7 @@ public class PlayApplication {
 
     @Bean
     DataSource dataSource() {
+        org.apache.ibatis.logging.LogFactory.useStdOutLogging();
         final var a = new SimpleDriverDataSource(new Driver(), "jdbc:h2:~/test");
         a.setUsername("sa");
         a.setPassword("");

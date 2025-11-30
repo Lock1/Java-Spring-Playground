@@ -104,10 +104,15 @@ public class MyBatisMapperFacade {
 
         @SuppressWarnings("unchecked") // This behavior based on reading MyBatis's source code. Last checked: MyBatis 3.5.19
         public String sqlGenerator(Map<String,Object> preparedStatementParameterMap) {
+            // Get all valuable parameters out from preparedStatementParameterMap before applying mutation
             final var parameters = (Map<String,Object>) preparedStatementParameterMap.get(MYBATIS_PARAMETER);
+            final var sql        = (String) parameters.get(SQL_STATEMENT);
             if (parameters.get(DYNAMIC_PARAMETER_MUTATOR_NAME) instanceof Consumer preparedStatementParameterMutator)
                  preparedStatementParameterMutator.accept(preparedStatementParameterMap);
-            return (String) parameters.get(SQL_STATEMENT);
+            preparedStatementParameterMap.remove(MYBATIS_PARAMETER);
+            preparedStatementParameterMap.remove(SQL_STATEMENT);
+            preparedStatementParameterMap.remove(DYNAMIC_PARAMETER_MUTATOR_NAME);
+            return sql;
         }
     }
 }
