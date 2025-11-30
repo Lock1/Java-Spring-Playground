@@ -17,7 +17,7 @@ import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
 import org.springframework.web.servlet.function.ServerResponse;
 
-import com.brush.play.MyBatisMapperShim.SqlResultHandler;
+import com.brush.play.MyBatisMapperFacade.SqlResultHandler;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,7 +43,7 @@ public class PlayApplication {
 
     @SuppressWarnings("unused")
     @Bean
-    RouterFunction<ServerResponse> routerFunction(MyBatisMapperShim mapper) {
+    RouterFunction<ServerResponse> routerFunction(MyBatisMapperFacade mapper) {
         record ReflectThis(
             String first,
             int second,

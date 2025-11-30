@@ -40,7 +40,7 @@ public class MyBatisMapperFacade {
     // New Mapper: Accept Java Objects & produce SQL statement (can be conditional) -> MyBatisMapperFacade execute the statement -> Transform result using provider resultHandler -> Final result
     //
     // Checklists:
-    // - Replace declarative-but-not-really-declarative non-PL feature to more normal in-band Java PL feature
+    // - Replace declarative-but-not-really-declarative non-PL feature to more normal Java PL feature
     // - Less need to remember MyBatis-specific behavior (what is ResultMap, ConstructorArgs, how it behave around XML, @XXXProvider, MyBatis source-code quirks, etc)
     //   - It's quite annoying to deal with MyBatis-specific behavior
     //   - Either discover it at runtime via trial-and-error like dynamic PL or read MyBatis's source code directly, both are exceptionally annoying for static PL & type-driven enjoyer
@@ -48,10 +48,10 @@ public class MyBatisMapperFacade {
     // - Hopefully more intuitive API: just ask Spring to inject MyBatisMapperFacade in your mapper, give sql statement in, get result out
     //   - It still accept MyBatis's dynamic XML features and mini-footgun: <Parameter extends Record> variant of this method use reflection to map field name -> prepared statement name
     //   - But unlike MyBatis XML & annotation which get spreaded across 10 billion files you need to track in your head, hopefully all of those can be contained within 1 class or even 1 method.
-    // - Drawback: Map<String,Object> - Enjoy boxed primitives (post-Valhalla pls fix). If you care about serde perf, you probably better off directly dealing with PreparedStatement anyway
+    // - Drawback: Map<String,Object> - Enjoy boxed primitives (post-Valhalla primitive parametric poly pls fix). If you care about serde perf, you probably better off directly dealing with PreparedStatement anyway
     // - Drawback: "With great power comes great responsibility" - Ability to use all normal Java PL constructs is very powerful, but used without care, enjoy SQLi. However, MyBatis XML & annotation mapper are not really safe either, you can still use ${}
     public <Result> Stream<Result> executeSelect(
-        @Untainted String sqlStatement,
+        @Untainted String sqlStatement, // WARNING: NEVER EVER SUPPLY THIS METHOD FROM UNSANITIZED/TAINTED EXTERNAL INPUT
         SqlResultHandler<? extends Result> resultHandler
     ) {
         return myBatisMapperApi.select(Map.of(InternalSqlProvider.SQL_STATEMENT, sqlStatement))
@@ -92,19 +92,19 @@ public class MyBatisMapperFacade {
     interface MyBatisMapperAPI {
         // In conjunction with InternalSqlProvider, this provides poor-man: select(String sqlStatement, Consumer<Map<String,Object>>) -> List<Map<String,Object>>
         @SelectProvider(type=MyBatisMapperFacade.InternalSqlProvider.class, method=InternalSqlProvider.MYBATIS_SQL_PROVIDER_METHOD_NAME)
-        public List<Map<String,Object>> select(@Param(MyBatisMapperFacade.InternalSqlProvider.__MYBATIS_PARAMETER) Map<String,Object> parameters);
+        public List<Map<String,Object>> select(@Param(MyBatisMapperFacade.InternalSqlProvider.MYBATIS_PARAMETER) Map<String,Object> parameters);
     }
 
     // There's no point accessing this class, but it requires public visibility in order MyBatis @XXXProvider reflection to work
     public static final class InternalSqlProvider {
-        private static final String __MYBATIS_PARAMETER              = "#__MYBATIS_PARAM"; // Should never clash with Record method names
+        private static final String MYBATIS_PARAMETER              = "#__MYBATIS_PARAM"; // Should never clash with Record method names
         private static final String SQL_STATEMENT                    = "#__SQL_STATEMENT";
         private static final String DYNAMIC_PARAMETER_MUTATOR_NAME   = "#__DYNAMIC_PARAMETER_MUTATOR";
         private static final String MYBATIS_SQL_PROVIDER_METHOD_NAME = "sqlGenerator"; 
 
         @SuppressWarnings("unchecked") // This behavior based on reading MyBatis's source code. Last checked: MyBatis 3.5.19
         public String sqlGenerator(Map<String,Object> preparedStatementParameterMap) {
-            final var parameters = (Map<String,Object>) preparedStatementParameterMap.get(__MYBATIS_PARAMETER);
+            final var parameters = (Map<String,Object>) preparedStatementParameterMap.get(MYBATIS_PARAMETER);
             if (parameters.get(DYNAMIC_PARAMETER_MUTATOR_NAME) instanceof Consumer preparedStatementParameterMutator)
                  preparedStatementParameterMutator.accept(preparedStatementParameterMap);
             return (String) parameters.get(SQL_STATEMENT);
