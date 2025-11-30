@@ -25,9 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 @Slf4j
 public class MyBatisMapperShim {
-    private static final Set<String> JAVA_DEFAULT_OBJECT_METHOD_NAMES = Set.of(
-        "equals", "toString", "hashCode", "getClass", "notify", "notifyAll", "wait"
-    );
+    private static final Set<String> JAVA_DEFAULT_OBJECT_METHOD_NAMES = Set.of("equals", "toString", "hashCode", "getClass", "notify", "notifyAll", "wait");
 
     private final MyBatisMapperAPI myBatisMapperApi;
 
@@ -51,11 +49,11 @@ public class MyBatisMapperShim {
         SqlResultHandler<? extends Result> resultHandler,
         Parameter param
     ) {
-        final Map<String,Object> dynamicParameters = new HashMap<>();
+        final Map<String,Object> preparedParametersToBeInjected = new HashMap<>(); // Unavoidable hand written mutating for-loop: Collectors.toMap() rejects nulls
         for (final Method method: param.getClass().getMethods()) {
             if (!JAVA_DEFAULT_OBJECT_METHOD_NAMES.contains(method.getName())) {
                 try {
-                    dynamicParameters.put(method.getName(), method.invoke(param));
+                    preparedParametersToBeInjected.put(method.getName(), method.invoke(param));
                 } catch (IllegalAccessException | InvocationTargetException e) {
                     throw new RuntimeException("Impossible java.lang.Record method invocation error", e);
                 }
@@ -63,7 +61,7 @@ public class MyBatisMapperShim {
         }
         final Map<String,Object> parameters = Map.ofEntries(
             Map.entry(InternalSqlProvider.SQL_STATEMENT, sqlStatement),
-            Map.entry(InternalSqlProvider.DYNAMIC_PARAMETER_MUTATOR_NAME, (Consumer<Map<String,Object>>) preparedStatementMap -> preparedStatementMap.putAll(dynamicParameters))
+            Map.entry(InternalSqlProvider.DYNAMIC_PARAMETER_MUTATOR_NAME, (Consumer<Map<String,Object>>) preparedStatementMap -> preparedStatementMap.putAll(preparedParametersToBeInjected))
         );
         return myBatisMapperApi.select(parameters)
             .stream()
