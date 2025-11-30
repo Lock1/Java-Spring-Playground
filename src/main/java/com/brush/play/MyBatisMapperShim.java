@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 
+// Thin API over MyBatis's mapper providing at-runtime SQL statement generation & dynamic SQL processing interfaces
 @Component
 @AllArgsConstructor
 @Slf4j
