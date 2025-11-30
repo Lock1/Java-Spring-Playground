@@ -97,7 +97,7 @@ public class MyBatisMapperFacade {
 
     // There's no point accessing this class, but it requires public visibility in order MyBatis @XXXProvider reflection to work
     public static final class InternalSqlProvider {
-        private static final String MYBATIS_PARAMETER              = "#__MYBATIS_PARAM"; // Should never clash with Record method names
+        private static final String MYBATIS_PARAMETER                = "#__MYBATIS_PARAM"; // Should never clash with Record method names
         private static final String SQL_STATEMENT                    = "#__SQL_STATEMENT";
         private static final String DYNAMIC_PARAMETER_MUTATOR_NAME   = "#__DYNAMIC_PARAMETER_MUTATOR";
         private static final String MYBATIS_SQL_PROVIDER_METHOD_NAME = "sqlGenerator"; 
