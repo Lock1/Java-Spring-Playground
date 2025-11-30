@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -40,7 +41,7 @@ public class MyBatisMapperShim {
         String sqlStatement,
         SqlResultHandler<? extends Result> resultHandler
     ) {
-        return myBatisMapperApi.select(Map.of(TypesafeShimSqlProvider.SQL_STATEMENT, sqlStatement))
+        return myBatisMapperApi.select(Map.of(InternalSqlProvider.SQL_STATEMENT, sqlStatement))
             .stream()
             .map(resultHandler::apply);
     }
@@ -60,10 +61,11 @@ public class MyBatisMapperShim {
                 }
             }
         }
-        final Map<String,Object> mutableMap = new HashMap<>();
-        mutableMap.put(TypesafeShimSqlProvider.SQL_STATEMENT, sqlStatement);
-        mutableMap.put(TypesafeShimSqlProvider.DYNAMIC_PARAM_MAP_NAME, dynamicParameters);
-        return myBatisMapperApi.select(mutableMap)
+        final Map<String,Object> parameters = Map.ofEntries(
+            Map.entry(InternalSqlProvider.SQL_STATEMENT, sqlStatement),
+            Map.entry(InternalSqlProvider.DYNAMIC_PARAMETER_MUTATOR_NAME, (Consumer<Map<String,Object>>) preparedStatementMap -> preparedStatementMap.putAll(dynamicParameters))
+        );
+        return myBatisMapperApi.select(parameters)
             .stream()
             .map(resultHandler::apply);
     }
@@ -75,24 +77,23 @@ public class MyBatisMapperShim {
     // This should never get exposed externally
     @Mapper
     interface MyBatisMapperAPI {
-        @SelectProvider(type=MyBatisMapperShim.TypesafeShimSqlProvider.class, method=TypesafeShimSqlProvider.MYBATIS_SQL_PROVIDER_METHOD_NAME)
-        public List<Map<String,Object>> select(
-            @Param(MyBatisMapperShim.TypesafeShimSqlProvider.MYBATIS_PARAM) Map<String,Object> parameters
-        );
+        // In conjunction with InternalSqlProvider, this provides poor-man: select(String sqlStatement, Consumer<Map<String,Object>>) -> List<Map<String,Object>>
+        @SelectProvider(type=MyBatisMapperShim.InternalSqlProvider.class, method=InternalSqlProvider.MYBATIS_SQL_PROVIDER_METHOD_NAME)
+        public List<Map<String,Object>> select(@Param(MyBatisMapperShim.InternalSqlProvider.__MYBATIS_PARAMETER) Map<String,Object> parameters);
     }
 
-    // There's no point accessing this class, but it requires public in order MyBatis @XXXProvider reflection to work
-    public static final class TypesafeShimSqlProvider {
-        private static final String MYBATIS_PARAM                    = "#__MYBATIS_PARAM"; // Should never clash with Record method names
+    // There's no point accessing this class, but it requires public visibility in order MyBatis @XXXProvider reflection to work
+    public static final class InternalSqlProvider {
+        private static final String __MYBATIS_PARAMETER              = "#__MYBATIS_PARAM"; // Should never clash with Record method names
         private static final String SQL_STATEMENT                    = "#__SQL_STATEMENT";
-        private static final String DYNAMIC_PARAM_MAP_NAME           = "#__DYNAMIC_PARAMETER_SHIM";
+        private static final String DYNAMIC_PARAMETER_MUTATOR_NAME   = "#__DYNAMIC_PARAMETER_MUTATOR";
         private static final String MYBATIS_SQL_PROVIDER_METHOD_NAME = "sqlGenerator"; 
 
         @SuppressWarnings("unchecked") // This behavior based on reading MyBatis's source code. Last checked: MyBatis 3.5.19
-        public String sqlGenerator(Map<String,Object> mybatisMap) {
-            final var parameters = (Map<String,Object>) mybatisMap.get(MYBATIS_PARAM);
-            if (parameters.get(DYNAMIC_PARAM_MAP_NAME) instanceof Map dynamicParameters)
-                mybatisMap.putAll(dynamicParameters);
+        public String sqlGenerator(Map<String,Object> preparedStatementParameterMap) {
+            final var parameters = (Map<String,Object>) preparedStatementParameterMap.get(__MYBATIS_PARAMETER);
+            if (parameters.get(DYNAMIC_PARAMETER_MUTATOR_NAME) instanceof Consumer preparedStatementParameterMutator)
+                 preparedStatementParameterMutator.accept(preparedStatementParameterMap);
             return (String) parameters.get(SQL_STATEMENT);
         }
     }
