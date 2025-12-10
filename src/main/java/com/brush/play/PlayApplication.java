@@ -1,6 +1,7 @@
 package com.brush.play;
 
 import java.util.Map;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
@@ -11,19 +12,33 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
 import org.springframework.web.servlet.function.ServerResponse;
 
-import com.brush.play.MyBatisMapperFacade.SqlResultHandler;
+import com.brush.play.sub.MyBatisMapperFacade;
+import com.brush.play.sub.MyBatisMapperFacade.SqlResultHandler;
 
 import lombok.extern.slf4j.Slf4j;
 
 @SpringBootApplication
 @Slf4j
+@EnableWebSecurity
 public class PlayApplication {
+    public sealed interface Maybe<T> {
+        public record Has<T>(T value) implements Maybe<T> {}
+        public record Empty<T>() implements Maybe<T> {}
+    }
+
     // it looks like with 3.5.19, we can use standard xml stuff here as well
     // what about XML forloop?
     private static final @Untainted String SQL_STRING = """
@@ -65,6 +80,34 @@ public class PlayApplication {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(mapper.executeSelect((@Untainted String) "SELECT * FROM TEST", map -> map.get("ID")))
             ).build();
+    }
+
+    @RestController
+    public static class Stub {
+        @GetMapping("/root")
+        public Object f(@RequestParam Optional<String> what) {
+            log.info("here: |{}|", what);
+            return what;
+        }
+    }
+
+    @Bean
+    @Order(1) // This is required
+    public SecurityFilterChain http2(HttpSecurity http) throws Exception {
+        final var a = http.securityMatcher("/root")
+            .authorizeHttpRequests(e -> e.anyRequest().permitAll())
+            .build();
+        log.info("filter1 : |{}|", a.getFilters());
+        return a;
+    }
+
+    @Bean
+    @Order(9999)
+    public SecurityFilterChain http(HttpSecurity http) throws Exception {
+        final var a = http.authorizeHttpRequests(e -> e.anyRequest().denyAll())
+            .build();
+        log.info("filter2 : |{}|", a.getFilters());
+        return a;
     }
 
     @Bean

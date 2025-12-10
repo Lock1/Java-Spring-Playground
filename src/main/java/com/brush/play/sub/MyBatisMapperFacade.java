@@ -1,4 +1,4 @@
-package com.brush.play;
+package com.brush.play.sub;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -68,6 +68,7 @@ public class MyBatisMapperFacade {
         for (final Method method: param.getClass().getMethods()) {
             if (!JAVA_DEFAULT_OBJECT_METHOD_NAMES.contains(method.getName())) {
                 try {
+                    method.setAccessible(true);
                     preparedParametersToBeInjected.put(method.getName(), method.invoke(param));
                 } catch (IllegalAccessException | InvocationTargetException e) {
                     throw new RuntimeException("Impossible java.lang.Record method invocation error", e);
