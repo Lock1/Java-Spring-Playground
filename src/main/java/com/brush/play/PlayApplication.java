@@ -1,6 +1,5 @@
 package com.brush.play;
 
-import java.util.Map;
 import java.util.Optional;
 
 import javax.sql.DataSource;
@@ -13,21 +12,17 @@ import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactor
 import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.function.RouterFunction;
-import org.springframework.web.servlet.function.RouterFunctions;
-import org.springframework.web.servlet.function.ServerResponse;
 
-import com.brush.play.sub.MyBatisMapperFacade;
-import com.brush.play.sub.MyBatisMapperFacade.SqlResultHandler;
-
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
 @SpringBootApplication
@@ -56,31 +51,31 @@ public class PlayApplication {
         SpringApplication.run(PlayApplication.class, args);
     }
 
-    @SuppressWarnings("unused")
-    @Bean
-    RouterFunction<ServerResponse> routerFunction(MyBatisMapperFacade mapper) {
-        record ReflectThis(
-            String first,
-            int second,
-            long third,
-            byte[] fourth,
-            String fifth
-        ) {}
-        final SqlResultHandler<Map<String,Object>> transformer = map -> { log.info("here: {}", map); return map; };
-        return RouterFunctions.route()
-            .GET("/hello", e -> {
-                return ServerResponse.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(mapper.executeSelect(SQL_STRING, transformer));
-            }).GET("/explode", __ -> {
-                return ServerResponse.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(mapper.executeSelect(SQL_STRING, transformer, new ReflectThis(null, 2, 1, new byte[1], null)));
-            }).GET("/hard", __ -> ServerResponse.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(mapper.executeSelect((@Untainted String) "SELECT * FROM TEST", map -> map.get("ID")))
-            ).build();
-    }
+    // @SuppressWarnings("unused")
+    // @Bean
+    // RouterFunction<ServerResponse> routerFunction(MyBatisMapperFacade mapper) {
+    //     record ReflectThis(
+    //         String first,
+    //         int second,
+    //         long third,
+    //         byte[] fourth,
+    //         String fifth
+    //     ) {}
+    //     final SqlResultHandler<Map<String,Object>> transformer = map -> { log.info("here: {}", map); return map; };
+    //     return RouterFunctions.route()
+    //         .GET("/hello", e -> {
+    //             return ServerResponse.ok()
+    //                 .contentType(MediaType.APPLICATION_JSON)
+    //                 .body(mapper.executeSelect(SQL_STRING, transformer));
+    //         }).GET("/explode", __ -> {
+    //             return ServerResponse.ok()
+    //                 .contentType(MediaType.APPLICATION_JSON)
+    //                 .body(mapper.executeSelect(SQL_STRING, transformer, new ReflectThis(null, 2, 1, new byte[1], null)));
+    //         }).GET("/hard", __ -> ServerResponse.ok()
+    //             .contentType(MediaType.APPLICATION_JSON)
+    //             .body(mapper.executeSelect((@Untainted String) "SELECT * FROM TEST", map -> map.get("ID")))
+    //         ).build();
+    // }
 
     @RestController
     public static class Stub {
@@ -89,26 +84,46 @@ public class PlayApplication {
             log.info("here: |{}|", what);
             return what;
         }
+
+        @GetMapping("/free-cookie")
+        public void giveMeCookie(HttpServletResponse response) {
+            response.addCookie(new Cookie("this-is-not-a-cookie", "ceci-nest-pas-une-pipe"));
+        }
+
+        // @GetMapping("/nuke")
+        public void nuked() {
+
+        }
     }
 
     @Bean
-    @Order(1) // This is required
+    // @Order(1) // This is required
     public SecurityFilterChain http2(HttpSecurity http) throws Exception {
-        final var a = http.securityMatcher("/root")
-            .authorizeHttpRequests(e -> e.anyRequest().permitAll())
-            .build();
+        final var a = http
+            .formLogin(x -> {})
+            .securityMatcher("/**")
+            // .securityMatcher("/free-cookie", "/nuke")
+            // .authorizeHttpRequests(e -> e.anyRequest().permitAll())
+            .logout(logout -> logout
+                .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher("/nuke"))
+                .logoutSuccessHandler((req, res, __) -> {
+                    log.info("{}", req);
+                    res.sendRedirect("/root");
+                })
+                .deleteCookies("this-is-not-a-cookie")
+            ).build();
         log.info("filter1 : |{}|", a.getFilters());
         return a;
     }
 
-    @Bean
-    @Order(9999)
-    public SecurityFilterChain http(HttpSecurity http) throws Exception {
-        final var a = http.authorizeHttpRequests(e -> e.anyRequest().denyAll())
-            .build();
-        log.info("filter2 : |{}|", a.getFilters());
-        return a;
-    }
+    // @Bean
+    // @Order(9999)
+    // public SecurityFilterChain http(HttpSecurity http) throws Exception {
+    //     final var a = http.authorizeHttpRequests(e -> e.anyRequest().denyAll())
+    //         .build();
+    //     log.info("filter2 : |{}|", a.getFilters());
+    //     return a;
+    // }
 
     @Bean
     ServletWebServerFactory servletWebServerFactory() { return new TomcatServletWebServerFactory(1337); }
