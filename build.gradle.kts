@@ -10,7 +10,7 @@ object Helper {
         return fun T.() { lambda(this) }
     }
 
-    fun <T> lambdaToAction(lambda: (T) -> Unit): Action<T> {
+    fun <T: Any> lambdaToAction(lambda: (T) -> Unit): Action<T> {
         return Action<T> { lambda(this) }
     }
 }
@@ -71,6 +71,8 @@ dependencies {
     }
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    
     implementation("org.springframework.boot:spring-boot-starter-log4j2")
     implementation("org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.5")
     implementation("com.h2database:h2:2.3.232")

@@ -118,7 +118,7 @@ public class PlayApplication {
                     .limit(length)
                     .collect(
                         StringBuffer::new,
-                        (acc, i) -> { acc.append(ASCIILookupTable.ALPHANUMERIC[i]); },
+                        (acc, i) -> acc.append(ASCIILookupTable.ALPHANUMERIC[i]),
                         (_, _) -> { throw new RuntimeException("Buggy code: Unexpected parallel stream"); }
                     ).toString();
             }
