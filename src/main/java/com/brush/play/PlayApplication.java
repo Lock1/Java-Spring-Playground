@@ -1,6 +1,8 @@
 package com.brush.play;
 
+import java.security.SecureRandom;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import javax.sql.DataSource;
 
@@ -11,18 +13,19 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @SpringBootApplication
@@ -35,7 +38,7 @@ public class PlayApplication {
     }
 
     // it looks like with 3.5.19, we can use standard xml stuff here as well
-    // what about XML forloop?
+    // what about XML OGNL-Batis forloop?
     private static final @Untainted String SQL_STRING = """
         WITH MyInlineTable(Column1, Column2) AS (
             SELECT 1, 'Red'
@@ -77,8 +80,56 @@ public class PlayApplication {
     //         ).build();
     // }
 
+    @Service
+    public static class SystemIOService {
+        public final RandomService random = new RandomService();
+
+        public long fetchSystemEpochMillis() {
+            return System.currentTimeMillis();
+        }
+
+        public static class RandomService {
+            private static final ThreadLocal<SecureRandom> THREAD_LOCAL_CSPRNG = ThreadLocal.withInitial(SecureRandom::new);
+
+            public byte[] generateBytes(int length) {
+                final var buffer = new byte[length];
+                THREAD_LOCAL_CSPRNG.get().nextBytes(buffer);
+                return buffer;
+            }
+
+            public IntStream generateInts() {
+                return THREAD_LOCAL_CSPRNG.get().ints();
+            }
+
+            private enum ASCIILookupTable { ;
+                static final char[] ALPHANUMERIC = new char[] {
+                    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+                    'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+                    'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D',
+                    'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                    'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+                    'Y', 'Z',
+                };
+            }
+
+            public String generateAlphanumericString(int length) {
+                return THREAD_LOCAL_CSPRNG.get().ints(0, ASCIILookupTable.ALPHANUMERIC.length) // Looks like SecureRandom provide convenient rejection sampling API
+                    .limit(length)
+                    .collect(
+                        StringBuffer::new,
+                        (acc, i) -> { acc.append(ASCIILookupTable.ALPHANUMERIC[i]); },
+                        (_, _) -> { throw new RuntimeException("Buggy code: Unexpected parallel stream"); }
+                    ).toString();
+            }
+        }
+    }
+
     @RestController
+    @AllArgsConstructor
     public static class Stub {
+        private final SystemIOService io;
+
         @GetMapping("/root")
         public Object f(@RequestParam Optional<String> what) {
             log.info("here: |{}|", what);
@@ -90,9 +141,9 @@ public class PlayApplication {
             response.addCookie(new Cookie("this-is-not-a-cookie", "ceci-nest-pas-une-pipe"));
         }
 
-        // @GetMapping("/nuke")
-        public void nuked() {
-
+        @GetMapping("/dev/urandom")
+        public String whoa() {
+            return io.random.generateAlphanumericString(10);
         }
     }
 
