@@ -82,13 +82,17 @@ public class PlayApplication {
 
     @Service
     public static class SystemIOService {
-        public final RandomService random = new RandomService();
+        private final CryptographicallySecureRandomService secureRandom = new CryptographicallySecureRandomService();
 
         public long fetchSystemEpochMillis() {
             return System.currentTimeMillis();
         }
 
-        public static class RandomService {
+        public CryptographicallySecureRandomService secureRandom() {
+            return this.secureRandom;
+        }
+
+        public static class CryptographicallySecureRandomService {
             private static final ThreadLocal<SecureRandom> THREAD_LOCAL_CSPRNG = ThreadLocal.withInitial(SecureRandom::new);
 
             public byte[] generateBytes(int length) {
@@ -101,8 +105,8 @@ public class PlayApplication {
                 return THREAD_LOCAL_CSPRNG.get().ints();
             }
 
-            private enum ASCIILookupTable { ;
-                static final char[] ALPHANUMERIC = new char[] {
+            private enum LookupTable { ;
+                static final char[] ASCII_ALPHANUMERIC = new char[] {
                     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
                     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
                     'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
@@ -114,11 +118,11 @@ public class PlayApplication {
             }
 
             public String generateAlphanumericString(int length) {
-                return THREAD_LOCAL_CSPRNG.get().ints(0, ASCIILookupTable.ALPHANUMERIC.length) // Looks like SecureRandom provide convenient rejection sampling API
+                return THREAD_LOCAL_CSPRNG.get().ints(0, LookupTable.ASCII_ALPHANUMERIC.length) // Looks like SecureRandom provide convenient rejection sampling API
                     .limit(length)
                     .collect(
                         StringBuffer::new,
-                        (acc, i) -> acc.append(ASCIILookupTable.ALPHANUMERIC[i]),
+                        (acc, i) -> acc.append(LookupTable.ASCII_ALPHANUMERIC[i]),
                         (_, _) -> { throw new RuntimeException("Buggy code: Unexpected parallel stream"); }
                     ).toString();
             }
@@ -143,7 +147,7 @@ public class PlayApplication {
 
         @GetMapping("/dev/urandom")
         public String whoa() {
-            return io.random.generateAlphanumericString(10);
+            return io.secureRandom().generateAlphanumericString(10);
         }
     }
 
